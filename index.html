@@ -1,20 +1,255 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SDK</title>
-    <script src="./featureTrackerSDK.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Interactive Demo App</title>
+
+  <!-- External CSS file (create styles.css in same folder) -->
+  <link rel="stylesheet" href="style.css" />
+  <script src="/featureTrackerSDK.js"></script>
 </head>
 <body>
-    This button is testing events
-    <button id="eventTester">Click Me</button>
-    <button id="">Click Me 2</button>
-    <button id="" type="submit">Click Me</button>
-    <input type="search" name="searchBar" id="searchProducts">
-    <div>
-        <button id="loginBtn">Login User</button>
-    </div>
-    <script src="./script.js"></script>
+
+  <!-- ================= HEADER ================= -->
+  <header class="header">
+    <h1 class="logo">Demo App</h1>
+
+    <nav>
+      <a href="#" data-page="home" class="nav-link">Home</a>
+      <a href="#" data-page="dashboard" class="nav-link">Dashboard</a>
+      <a href="#" data-page="settings" class="nav-link">Settings</a>
+      <a href="#" data-page="profile" class="nav-link">Profile</a>
+    </nav>
+
+    <!-- Search Feature -->
+    <input
+      type="text"
+      id="globalSearch"
+      placeholder="Search items..."
+      data-feature="global_search"
+    />
+  </header>
+
+  <!-- ================= MAIN CONTENT ================= -->
+  <main id="content">
+  </main>
+
+  <!-- ================= PAGES (AJAX TEMPLATES) ================= -->
+  <script>
+    const pages = {
+      home: `
+        <section class="page">
+          <h2>Home</h2>
+            <button id="getData">Get data</button>
+          <!-- Feature 1: Live Search List -->
+          <div class="card" data-feature="live_search_list">
+            <h3>Live Filter List</h3>
+            <input id="listSearch" placeholder="Filter fruits..." />
+            <ul id="fruitList">
+              <li>Apple</li>
+              <li>Banana</li>
+              <li>Mango</li>
+              <li>Orange</li>
+              <li>Pineapple</li>
+            </ul>
+          </div>
+
+          <!-- Feature 2: Range Slider -->
+          <div class="card" data-feature="price_slider">
+            <h3>Price Slider</h3>
+            <input type="range" id="priceRange" min="0" max="100" value="50" />
+            <p>Value: <span id="priceValue">50</span></p>
+          </div>
+
+          <!-- Feature 3: Toggle Content -->
+          <div class="card" data-feature="toggle_section">
+            <h3>Toggle Section</h3>
+            <button id="toggleBtn">Show/Hide</button>
+            <div id="toggleBox" class="box">Hidden content lives here 👀</div>
+          </div>
+        </section>
+      `,
+
+      dashboard: `
+        <section class="page">
+          <h2>Dashboard</h2>
+
+          <!-- Feature 4: Counter -->
+          <div class="card" data-feature="click_counter">
+            <h3>Click Counter</h3>
+            <button id="counterBtn">Click me</button>
+            <p>Count: <span id="counterValue">0</span></p>
+          </div>
+
+          <!-- Feature 5: Progress Bar -->
+          <div class="card" data-feature="progress_demo">
+            <h3>Progress Demo</h3>
+            <button id="startProgress">Start Progress</button>
+            <div class="progress">
+              <div id="progressFill" class="progress-fill"></div>
+            </div>
+          </div>
+        </section>
+      `,
+
+      settings: `
+        <section class="page">
+          <h2>Settings</h2>
+
+          <!-- Feature 6: Theme Toggle -->
+          <div class="card" data-feature="theme_toggle">
+            <h3>Theme Toggle</h3>
+            <button id="themeBtn">Toggle Dark Mode</button>
+          </div>
+
+          <!-- Feature 7: Form Interaction -->
+          <div class="card" data-feature="settings_form">
+            <h3>Settings Form</h3>
+            <input placeholder="Enter name" />
+            <button id="saveSettings">Save</button>
+            <p id="saveMsg"></p>
+          </div>
+        </section>
+      `,
+
+      profile: `
+        <section class="page">
+          <h2>Profile</h2>
+
+          <!-- Feature 8: Tabs -->
+          <div class="card" data-feature="profile_tabs">
+            <h3>Profile Tabs</h3>
+            <div class="tabs">
+              <button class="tab-btn" data-tab="info">Info</button>
+              <button class="tab-btn" data-tab="activity">Activity</button>
+            </div>
+            <div id="tabContent">Select a tab</div>
+          </div>
+
+
+          <!-- Feature 10: Tooltip Hover -->
+          <div class="card" data-feature="tooltip_demo">
+            <h3>Tooltip Demo</h3>
+            <span class="tooltip">
+              Hover me
+              <span class="tooltip-text">Hello from tooltip 👋</span>
+            </span>
+          </div>
+        </section>
+      `
+    };
+  </script>
+
+  
+
+  <!-- ================= APP LOGIC ================= -->
+  <script>
+    function loadPage(name) {
+      document.getElementById('content').innerHTML = pages[name];
+      wirePageInteractions();
+    }
+
+    // NAVIGATION
+    document.querySelectorAll('.nav-link').forEach(link => {
+      link.addEventListener('click', e => {
+        e.preventDefault();
+        loadPage(link.dataset.page);
+      });
+    });
+
+    // GLOBAL SEARCH
+    document.getElementById('globalSearch').addEventListener('input', e => {
+      const term = e.target.value.toLowerCase();
+      document.querySelectorAll('.card').forEach(card => {
+        card.style.display = card.innerText.toLowerCase().includes(term)
+          ? 'block'
+          : 'none';
+      });
+    });
+
+    function wirePageInteractions() {
+      // Live list search
+      const listSearch = document.getElementById('listSearch');
+      if (listSearch) {
+        listSearch.oninput = e => {
+          const term = e.target.value.toLowerCase();
+          document.querySelectorAll('#fruitList li').forEach(li => {
+            li.style.display = li.innerText.toLowerCase().includes(term)
+              ? 'list-item'
+              : 'none';
+          });
+        };
+      }
+
+      // Slider
+      const range = document.getElementById('priceRange');
+      if (range) {
+        range.oninput = () => {
+          document.getElementById('priceValue').innerText = range.value;
+        };
+      }
+
+      // Toggle
+      const toggleBtn = document.getElementById('toggleBtn');
+      if (toggleBtn) {
+        toggleBtn.onclick = () => {
+          document.getElementById('toggleBox').classList.toggle('hidden');
+        };
+      }
+
+      // Counter
+      const counterBtn = document.getElementById('counterBtn');
+      if (counterBtn) {
+        let count = 0;
+        counterBtn.onclick = () => {
+          count++;
+          document.getElementById('counterValue').innerText = count;
+        };
+      }
+
+      // Progress
+      const startProgress = document.getElementById('startProgress');
+      if (startProgress) {
+        startProgress.onclick = () => {
+          let width = 0;
+          const fill = document.getElementById('progressFill');
+          const interval = setInterval(() => {
+            width += 10;
+            fill.style.width = width + '%';
+            if (width >= 100) clearInterval(interval);
+          }, 200);
+        };
+      }
+
+      // Theme
+      const themeBtn = document.getElementById('themeBtn');
+      if (themeBtn) {
+        themeBtn.onclick = () => document.body.classList.toggle('dark');
+      }
+
+      // Save settings
+      const saveBtn = document.getElementById('saveSettings');
+      if (saveBtn) {
+        saveBtn.onclick = () => {
+          document.getElementById('saveMsg').innerText = 'Saved ✅';
+        };
+      }
+
+      // Tabs
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.onclick = () => {
+          document.getElementById('tabContent').innerText =
+            btn.dataset.tab === 'info'
+              ? 'User information here.'
+              : 'Recent activity here.';
+        };
+      });
+
+    }
+
+    // Load default page
+    loadPage('home');
+  </script>
 </body>
 </html>

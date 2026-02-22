@@ -1,4 +1,3 @@
-
 (function featureTracker(window){
     const visitorId=getOrCreateUser()
     function getOrCreateUser(){
@@ -8,7 +7,7 @@
             //creating a new id
             if(!id){
                 id = "v_" + Math.random().toString(12).slice(2) + Date.now();
-                localStorage.setItem(key, id);
+                localStorage.setItem(STORAGE_KEY, id);
             }
             return id
     }
@@ -32,11 +31,14 @@
             document.addEventListener("submit", this.handleEvent.bind(this), true);
         },
         handleEvent:function(event){
+            //console.log(event)
             const elementData=this.recordEvent(event)
             this.sendData(elementData)
         },
         recordEvent:function(event){
             const element =event.target;
+            const selector = getSelectorFingerprint(element);
+            const featureKey = hashString(selector);
             const eventData={
                 visitorId:this.visitorId||null,
                 eventType:element.type,
@@ -50,6 +52,8 @@
                 name: element.getAttribute("name"),
                 page:window.location.pathname,
                 baseURL:element.baseURI,
+                featureKey:featureKey,
+                selectorFingerPrint:selector,
                 timeStamp: Date.now()
             }
             console.log("eventData:",eventData)
@@ -85,13 +89,12 @@
         },
         recordPageView:function() {
         const payload = {
-            userId: this.visitorId || null,
+            visitorId: this.visitorId || null,
             eventType: "page_view",
             timestamp: Date.now(),
             page: window.location.pathname,
             url: window.location.href
         };
-
         this.sendEvent(payload);
         },
         sendData:async function(payload){
@@ -115,3 +118,54 @@
     FeatureTracker.init({visitorId:visitorId})
 
 })(window)
+
+function getSelectorFingerprint(el) {
+  const path = [];
+
+  while (el && el.nodeType === 1 && el !== document.body) {
+    let selector = el.tagName.toLowerCase();
+
+    // prefer stable id
+    if (el.id) {
+      selector += "#" + el.id;
+      path.unshift(selector);
+      break; // id is unique enough
+    }
+
+    // fallback to class
+    if (el.className && typeof el.className === "string") {
+      const cls = el.className.trim().split(/\s+/)[0];
+      if (cls) selector += "." + cls;
+    }
+
+    // fallback to position
+    const parent = el.parentNode;
+    if (parent) {
+      const siblings = Array.from(parent.children).filter(
+        (child) => child.tagName === el.tagName
+      );
+
+      if (siblings.length > 1) {
+        const index = siblings.indexOf(el) + 1;
+        selector += `:nth-of-type(${index})`;
+      }
+    }
+
+    path.unshift(selector);
+    el = el.parentElement;
+  }
+
+  return path.join(" > ");
+}
+
+function hashString(str) {
+  let hash = 0;
+
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0; // convert to 32-bit int
+  }
+
+  return "f_" + Math.abs(hash);
+}
