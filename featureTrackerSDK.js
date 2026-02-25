@@ -1,5 +1,5 @@
-const title=document.querySelector("title")
-console.log("title:",title,document.title);
+ 
+console.log("title:",document.title);
 
 const backendUrl=`http://localhost:4000/api`;
 
