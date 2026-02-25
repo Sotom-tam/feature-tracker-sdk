@@ -1,3 +1,8 @@
+const title=document.querySelector("title")
+console.log("title:",title,document.title);
+
+const backendUrl=`http://localhost:4000/api`;
+
 (function featureTracker(window){
     const visitorId=getOrCreateUser()
     function getOrCreateUser(){
@@ -14,15 +19,34 @@
     const FeatureTracker={
         initialised:false,
         config:{},
-        visitorId:null,
+        visitorId:visitorId,
+        projectName:document.title,
+        projectKey:null,
         init:function(config={}){
             if(this.initialised)return;
 
             this.config=config;
             this.attachListener();
             this.initialised=true;
-            this.visitorId=config.visitorId
-            console.log(config,config.visitorId)
+            this.projectKey=config.projectKey
+            if(this.projectKey==="proj_SW50ZXJh"){
+                console.log("yo init")
+                this.sdkInitialised()
+            }
+            console.log(config)
+        },
+        sdkInitialised:async function(){
+            const response =await fetch(`${backendUrl}/project/verify-project`,{
+                method:"POST",
+                headers:{"Content-type":"application/json"},
+                body:JSON.stringify({
+                    projectKey:this.projectKey,
+                    projectName:this.projectName
+                }),
+                credentials:"include"
+            })
+            const data= await response.json()
+            console.log(data)
         },
         attachListener:function(){
             document.addEventListener("click", this.handleEvent.bind(this), true);
@@ -36,9 +60,10 @@
             this.sendData(elementData)
         },
         recordEvent:function(event){
+            //console.log(event,event.target)
             const element =event.target;
             const selector = getSelectorFingerprint(element);
-            const featureKey = hashString(selector);
+            const featureKey = hashString(selector,15,"f_");
             const eventData={
                 visitorId:this.visitorId||null,
                 eventType:element.type,
@@ -115,7 +140,7 @@
     }
     window.FeatureTracker=FeatureTracker;
     
-    FeatureTracker.init({visitorId:visitorId})
+    
 
 })(window)
 
@@ -124,7 +149,6 @@ function getSelectorFingerprint(el) {
 
   while (el && el.nodeType === 1 && el !== document.body) {
     let selector = el.tagName.toLowerCase();
-
     // prefer stable id
     if (el.id) {
       selector += "#" + el.id;
@@ -134,8 +158,10 @@ function getSelectorFingerprint(el) {
 
     // fallback to class
     if (el.className && typeof el.className === "string") {
-      const cls = el.className.trim().split(/\s+/)[0];
-      if (cls) selector += "." + cls;
+        //console.log("class name:",el.className)
+        //if element has multiple classnames we split them using the whitespace \s and + if there's more than one
+        const cls = el.className.trim().split(/\s+/)[0];//split might give us and array of each classname so we take the first one
+        if (cls) selector += "." + cls;
     }
 
     // fallback to position
@@ -158,14 +184,11 @@ function getSelectorFingerprint(el) {
   return path.join(" > ");
 }
 
-function hashString(str) {
-  let hash = 0;
-
-  for (let i = 0; i < str.length; i++) {
-    const char = str.charCodeAt(i);
-    hash = (hash << 5) - hash + char;
-    hash |= 0; // convert to 32-bit int
-  }
-
-  return "f_" + Math.abs(hash);
+function hashString(str,strLength,strIden) {
+    const hash=btoa(str).slice(0,strLength)
+    //console.log("btoaHarsh:",hash)
+    return `${strIden}` + hash;
 }
+
+
+
