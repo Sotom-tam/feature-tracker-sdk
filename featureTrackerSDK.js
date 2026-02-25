@@ -29,10 +29,8 @@ const backendUrl=`http://localhost:4000/api`;
             this.attachListener();
             this.initialised=true;
             this.projectKey=config.projectKey
-            if(this.projectKey==="proj_SW50ZXJh"){
-                console.log("yo init")
+            console.log("yo init")
                 this.sdkInitialised()
-            }
             console.log(config)
         },
         sdkInitialised:async function(){
