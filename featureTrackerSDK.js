@@ -43,8 +43,7 @@ const backendUrl=`http://localhost:4000/api`;
                 }),
                 credentials:"include"
             })
-            const data= await response.json()
-            console.log(data)
+            console.log("Your feature Tracker is ready")
         },
         attachListener:function(){
             document.addEventListener("click", this.handleEvent.bind(this), true);
