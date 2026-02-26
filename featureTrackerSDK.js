@@ -1,5 +1,7 @@
  
-console.log("title:",document.title);
+const script=document.getElementById("featureTrackSDK")
+const projectKey=script.dataset.projKey
+//console.log("title:",document.title,"\n Project Key:",projectKey);
 
 const backendUrl=`http://localhost:4000/api`;
 
@@ -22,15 +24,17 @@ const backendUrl=`http://localhost:4000/api`;
         visitorId:visitorId,
         projectName:document.title,
         projectKey:null,
+        lastPage:null,
         init:function(config={}){
             if(this.initialised)return;
 
             this.config=config;
             this.attachListener();
+            this.recordPageView();
             this.initialised=true;
             this.projectKey=config.projectKey
-            console.log("yo init")
-                this.sdkInitialised()
+            console.log("Initialising")
+            this.sdkInitialised()
             console.log(config)
         },
         sdkInitialised:async function(){
@@ -59,6 +63,9 @@ const backendUrl=`http://localhost:4000/api`;
         recordEvent:function(event){
             //console.log(event,event.target)
             const element =event.target;
+            if(element===document.body||element.documentElement){
+
+            }
             const selector = getSelectorFingerprint(element);
             const featureKey = hashString(selector,15,"f_");
             const eventData={
@@ -108,6 +115,8 @@ const backendUrl=`http://localhost:4000/api`;
 
         // --- Back/forward navigation ---
         window.addEventListener("popstate", handleLocationChange);
+
+        
         },
         recordPageView:function() {
         const payload = {
@@ -117,7 +126,7 @@ const backendUrl=`http://localhost:4000/api`;
             page: window.location.pathname,
             url: window.location.href
         };
-        this.sendEvent(payload);
+        this.sendData(payload);
         },
         sendData:async function(payload){
             try {
@@ -136,9 +145,9 @@ const backendUrl=`http://localhost:4000/api`;
 
     }
     window.FeatureTracker=FeatureTracker;
-    
-    
-
+       FeatureTracker.init({
+        projectKey:projectKey
+    })    
 })(window)
 
 function getSelectorFingerprint(el) {
