@@ -1,6 +1,7 @@
  
 const script=document.getElementById("featureTrackSDK")
-const projectKey=script.dataset.projKey
+const projectKey=script.dataset.projKey;
+console.log(projectKey);
 //console.log("title:",document.title,"\n Project Key:",projectKey);
 
 const backendUrl=`http://localhost:4000/api`;
@@ -47,7 +48,8 @@ const backendUrl=`http://localhost:4000/api`;
                 }),
                 credentials:"include"
             })
-            console.log("Your feature Tracker is ready")
+            const data=await response.json()
+            console.log("Your feature tracker is ready",data)
         },
         attachListener:function(){
             document.addEventListener("click", this.handleEvent.bind(this), true);
@@ -116,7 +118,7 @@ const backendUrl=`http://localhost:4000/api`;
         // --- Back/forward navigation ---
         window.addEventListener("popstate", handleLocationChange);
 
-        
+
         },
         recordPageView:function() {
         const payload = {
@@ -126,7 +128,7 @@ const backendUrl=`http://localhost:4000/api`;
             page: window.location.pathname,
             url: window.location.href
         };
-        this.sendData(payload);
+        //this.sendData(payload);
         },
         sendData:async function(payload){
             try {
@@ -145,7 +147,7 @@ const backendUrl=`http://localhost:4000/api`;
 
     }
     window.FeatureTracker=FeatureTracker;
-       FeatureTracker.init({
+    FeatureTracker.init({
         projectKey:projectKey
     })    
 })(window)

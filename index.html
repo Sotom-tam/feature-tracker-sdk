@@ -7,12 +7,8 @@
 
   <!-- External CSS file (create styles.css in same folder) -->
   <link rel="stylesheet" href="style.css" />
-  <script src="https://cdn.jsdelivr.net/gh/Sotom-tam/feature-tracker-sdk@228e124d12fdb83a8d925e20c8bdacec306a3edc/featureTrackerSDK.js"></script>
-  <script>
-    FeatureTracker.init({
-        projectKey:"proj_16abddba0d405800"
-    })
-  </script>
+  <script id="featureTrackSDK" src="./featureTrackerSDK.js" data-proj-key="proj_16abddba0d405800"></script>
+  
 </head>
 <body>
 
@@ -46,7 +42,6 @@
       home: `
         <section class="page">
           <h2>Home</h2>
-            <button id="getData">Get data</button>
           <!-- Feature 1: Live Search List -->
           <div class="card" data-feature="live_search_list">
             <h3>Live Filter List</h3>
