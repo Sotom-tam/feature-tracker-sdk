@@ -172,7 +172,7 @@ const backendUrl=`https://cinanalytics-backend.onrender.com/api`;
         },
         sendData:async function(payload){
             try {
-                const result=await fetch(`${backendUrl}/api/events`,{
+                const result=await fetch(`${backendUrl}/events`,{
                 method:"POST",
                 headers:{"Content-Type": "application/json"},
                 body:JSON.stringify(payload),
