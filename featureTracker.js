@@ -1,11 +1,11 @@
 const script=document.getElementById("featureTrackSDK")
 const projectKey=script?.dataset?.projKey|| "demoProjectKey1234";
-
+//broooo
 const favicon = document.querySelector("link[rel~='icon']");
 const icon=favicon?.href
 console.log("icon:",icon);
 
-const backendUrl="http://localhost:4000/api";
+const backendUrl="https://cinanalytics-backend.onrender.com/api";
 
 (function featureTracker(){
     const FeatureTracker={
