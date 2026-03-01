@@ -1,7 +1,7 @@
  //script has a dataset that point to the project key of the project saved on the databse
 const script=document.getElementById("featureTrackSDK")
 const projectKey=script.dataset.projKey;
-//to get the icon, or favicon on the
+//to get the icon, or favicon on the site
 const favicon = document.querySelector("link[rel~='icon']");
 const icon=favicon?.href
 console.log("icon:",icon)
@@ -74,14 +74,11 @@ const backendUrl=`https://cinanalytics-backend.onrender.com/api`;
         recordEvent:function(event){
             //console.log(event,event.target)
             const element =event.target;
-            if(element===document.body||element.documentElement){
-
-            }
             const selector = getSelectorFingerprint(element);
             const featureKey = hashString(selector,15,"f_");
             const eventData={
                 visitorId:this.visitorId||null,
-                eventType:element.type,
+                eventType:event.type,
                 innerText:element.innerText,
                 parentElement:element.parentElement.tagName,
                 tag:element.tagName,
