@@ -124,12 +124,11 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             projectKey: this.projectKey,
             visitorId:  this.visitorId,
             eventType:  "pageview",
-            page: {
+            pageName:getPageName(window.location.pathname) ,
             path:  window.location.pathname,
             hash:  window.location.hash,
             url:   window.location.href,
             title: document.title,
-            },
             source,
             timestamp: Date.now(),
         };
@@ -300,6 +299,24 @@ function formatFeatureName(raw) {
     .replace(/\b\w/g, (c) => c.toUpperCase())
     .trim();
 }
+
+function getPageName(path) {
+  // Remove leading slash, split into segments
+  const segments = path.replace(/^\//, "").split("/").filter(Boolean);
+
+  if (segments.length === 0) return "Home";
+
+  // Take the last meaningful segment
+  // /lesson/biology  → "biology"
+  // /dashboard       → "dashboard"  
+  // /lesson/biology/quiz → "quiz"
+  const raw = segments[segments.length - 1];
+
+  // Reuse your existing formatter
+  return formatFeatureName(raw);
+}
+
+
 function getSelectorFingerprint(el) {
   const path = [];
 
