@@ -5,7 +5,7 @@ const favicon = document.querySelector("link[rel~='icon']");
 const icon=favicon?.href
 console.log("icon:",icon);
 
-const backendUrl="https://cinanalytics-backend.onrender.com/api";
+const backendUrl="http://localhost:4000/api";
 
 (function featureTracker(){
     const FeatureTracker={
@@ -14,6 +14,7 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
         visitorId:getOrCreateUser(),
         projectKey:null,
         projectIcon:icon,
+        currentPageName:null,
          /** The last recorded pathname + hash, used for de-duplication */
         lastRecordedPath: null,
         /** MutationObserver watching for SPA DOM swaps (React / Vue / Angular) */
@@ -70,6 +71,21 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             document.addEventListener("submit", this.handleEvent.bind(this), true);
         },
         handleEvent:function(event){
+            if (event.type === "click") {
+            const pageName = this.getPageFromClick(event.target);
+            if (pageName) {
+            this.currentPageName = pageName;
+            // URL won't change in index.html style apps so MutationObserver
+            // will catch the DOM swap — but give it a nudge with a small delay
+            // to ensure currentPageName is set before it fires
+            setTimeout(() => {
+                if (this.currentPageName) {
+                // MutationObserver didn't fire, manually track the pageview
+                this.trackPageView("navigation");
+                }
+            }, 300); // slightly longer than MutationObserver's 200ms debounce
+            }
+        }
             //console.log(event)
             const elementData=this.recordEvent(event)
             this.sendData(elementData)
@@ -114,17 +130,36 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             console.log("Event Captured:",eventData)
             return eventData
         },
+        getPageFromClick: function(element) {
+        // Check if the clicked element or its parent is a nav link
+        const anchor = element.closest("a[data-page], nav a, [role='navigation'] a");
+        if (!anchor) return null;
+
+        // Prefer data-page attribute, fall back to link text
+        const raw =
+            anchor.getAttribute("data-page") ||
+            anchor.getAttribute("href")?.replace(/^[/#]+/, "") ||
+            anchor.innerText?.trim();
+
+        if (!raw || raw === "#") return null;
+
+        return formatFeatureName(raw);
+        },
         trackPageView: function (source) {
         const currentPath = window.location.pathname + window.location.hash;
         // De-duplicate: don't fire twice for the same path
-        if (source !== "initial" && currentPath === this.lastRecordedPath) return;
+        if (source !== "initial" && currentPath === this._lastRecordedPath) {
+            // Path didn't change but page name did (index.html style app)
+            // Only allow it through if we have a fresh currentPageName
+            if (!this.currentPageName) return;
+        }
         this.lastRecordedPath = currentPath;
 
         const eventData = {
             projectKey: this.projectKey,
             visitorId:  this.visitorId,
             eventType:  "pageview",
-            pageName:getPageName(window.location.pathname) ,
+            pageName:this.currentPageName || getPageName(window.location.pathname),
             path:  window.location.pathname,
             hash:  window.location.hash,
             url:   window.location.href,

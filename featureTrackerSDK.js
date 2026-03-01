@@ -8,7 +8,7 @@ console.log("icon:",icon)
 console.log(projectKey);
 //console.log("title:",document.title,"\n Project Key:",projectKey);
 
-const backendUrl=`https://cinanalytics-backend.onrender.com/api`;
+const backendUrl=`http://localhost:4000/api`;
 
 (function featureTracker(window){
     const visitorId=getOrCreateUser()
