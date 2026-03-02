@@ -9,11 +9,13 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
 
 (function featureTracker(){
     const FeatureTracker={
-        initialiased:false,
+        initialised:false,
         config:{},
         visitorId:getOrCreateUser(),
         projectKey:null,
         projectIcon:icon,
+        pendingNavigation: false,
+        navigationTimer: null,
         currentPageName:null,
          /** The last recorded pathname + hash, used for de-duplication */
         lastRecordedPath: null,
@@ -24,7 +26,9 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
         init:async function(config={}){
             //this function should only run on the first load
             if(this.initialised)return;
+
             //values to set on first load
+            this.initialised=true;
             this.config = config;
             this.projectKey = config.projectKey||null;
 
@@ -50,7 +54,7 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             this.trackPageView("initial");
             }
             //setting intiliased to true
-            this.initiliased=true;
+
             console.log("Initialising")
             console.log(config)
         },
@@ -75,21 +79,26 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             if (event.type === "click") {
             const pageName = this.getPageFromClick(event.target);
             if (pageName) {
-            this.currentPageName = pageName;
-            // URL won't change in index.html style apps so MutationObserver
-            // will catch the DOM swap — but give it a nudge with a small delay
-            // to ensure currentPageName is set before it fires
-            setTimeout(() => {
-                if (this.currentPageName) {
-                // MutationObserver didn't fire, manually track the pageview
-                this.trackPageView("navigation");
+                this.currentPageName = pageName;
+                // mark navigation pending
+                this.pendingNavigation = true;
+                // clear any previous timer
+                if (this.navigationTimer) {
+                clearTimeout(this.navigationTimer);
                 }
-            }, 300); // slightly longer than MutationObserver's 200ms debounce
+                //  fallback only if router fails
+                this.navigationTimer = setTimeout(() => {
+                if (this.pendingNavigation) {
+                    this.trackPageView("navigation-fallback");
+                    this.pendingNavigation = false;
+                }
+                }, 400);
             }
-        }
+            }
             //console.log(event)
             const elementData=this.recordEvent(event)
-            this.sendData(elementData)
+            if(elementData){this.sendData(elementData)}
+            
         },
         recordEvent:function(event){
             const eventType=event.type;
@@ -149,13 +158,13 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
         trackPageView: function (source) {
         const currentPath = window.location.pathname + window.location.hash;
         // De-duplicate: don't fire twice for the same path
-        if (source !== "initial" && currentPath === this._lastRecordedPath) {
+        if (currentPath === this.lastRecordedPath && source !== "initial") {
             // Path didn't change but page name did (index.html style app)
             // Only allow it through if we have a fresh currentPageName
             if (!this.currentPageName) return;
         }
         this.lastRecordedPath = currentPath;
-
+        this.pendingNavigation=false
         const eventData = {
             projectKey: this.projectKey,
             visitorId:  this.visitorId,
@@ -177,12 +186,15 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
         function wrapHistoryMethod(methodName) {
             const original = history[methodName];
             history[methodName] = function (...args) {
-            original.apply(this, args);
-            self.lastHistoryChange = Date.now();
-            // Use a tiny timeout so the new URL has time to settle
-            // and document.title has been updated by the framework
-            setTimeout(() => self.trackPageView(methodName), 0);
-            };
+                original.apply(this, args);
+                self.lastHistoryChange = Date.now();
+                // cancel click fallback
+                self.pendingNavigation = false;
+                if (self.navigationTimer) {
+                    clearTimeout(self.navigationTimer);
+                }
+                setTimeout(() => self.trackPageView(methodName), 0);
+                };
         }
         wrapHistoryMethod("pushState");
         wrapHistoryMethod("replaceState");
@@ -213,7 +225,11 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
                 const currentPath = window.location.pathname + window.location.hash;
-
+                
+                // router already handled
+                if (!self.pendingNavigation && Date.now() - self.lastHistoryChange < 500) {
+                return;
+                }
                 // Skip if path hasn't changed (e.g. just a UI re-render on the same route)
                 if (currentPath === self.lastRecordedPath) return;
 
