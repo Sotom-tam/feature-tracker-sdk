@@ -9,7 +9,7 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
 
 (function featureTracker(){
     const FeatureTracker={
-        initiliased:false,
+        initialiased:false,
         config:{},
         visitorId:getOrCreateUser(),
         projectKey:null,
@@ -21,7 +21,7 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
         mutationObserver: null,
         /** Timestamp of last pushState/replaceState call to suppress duplicate MutationObserver fires */
         lastHistoryChange: 0,
-        init:function(config={}){
+        init:async function(config={}){
             //this function should only run on the first load
             if(this.initialised)return;
             //values to set on first load
@@ -34,6 +34,7 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             }
 
             //functions to call on first load
+            await this.sdkInitialised();
             this.attachListener();
             this.patchHistory();       // intercept pushState / replaceState
             this.listenHashChange();   // hash-router support  (#/route)
