@@ -1,6 +1,5 @@
 const script=document.getElementById("featureTrackSDK")
 const projectKey=script?.dataset?.projKey|| "demoProjectKey1234";
-//broooo
 const favicon = document.querySelector("link[rel~='icon']");
 const icon=favicon?.href
 console.log("icon:",icon);
@@ -28,7 +27,7 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             if(this.initialised)return;
 
             //values to set on first load
-            this.initialised=true;
+
             this.config = config;
             this.projectKey = config.projectKey||null;
 
@@ -37,8 +36,14 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
                 return; // never sets this.initialised = true, so init() could be retried
             }
 
+
+            const verified=await this.sdkInitialised();
+            if (!verified) {
+                console.warn("[FeatureTracker] Project verification failed. Tracking disabled.");
+                return; // still not initialised — safe to retry
+            }
+            this.initialised=true;
             //functions to call on first load
-            await this.sdkInitialised();
             this.attachListener();
             this.patchHistory();       // intercept pushState / replaceState
             this.listenHashChange();   // hash-router support  (#/route)
@@ -158,11 +163,7 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
         trackPageView: function (source) {
         const currentPath = window.location.pathname + window.location.hash;
         // De-duplicate: don't fire twice for the same path
-        if (currentPath === this.lastRecordedPath && source !== "initial") {
-            // Path didn't change but page name did (index.html style app)
-            // Only allow it through if we have a fresh currentPageName
-            if (!this.currentPageName) return;
-        }
+
         this.lastRecordedPath = currentPath;
         this.pendingNavigation=false
         const eventData = {
@@ -219,8 +220,21 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
                 document.getElementById("app") ||    // Vue CLI / custom
                 document.getElementById("__next") || // Next.js
                 document.getElementById("content") || // index.html demo style
+                document.getElementById("page_content")||//cinfores style
                 document.body;
 
+            let lastContentFingerprint = null;
+            function getContentFingerprint() {
+                // Grab the first meaningful content-swap container
+                const swapTarget =
+                    document.getElementById("page_content") || // your app's swap target
+                    mountPoint;
+                // Fingerprint = child count + first child tag + text sample
+                const children = swapTarget.children;
+                const firstTag = children[0]?.tagName || "";
+                const textSample = swapTarget.innerText?.trim().slice(0, 80) || "";
+                return `${children.length}|${firstTag}|${textSample}`;
+            }
             this.mutationObserver = new MutationObserver(() => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
@@ -230,12 +244,14 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
                 if (!self.pendingNavigation && Date.now() - self.lastHistoryChange < 500) {
                 return;
                 }
-                // Skip if path hasn't changed (e.g. just a UI re-render on the same route)
-                if (currentPath === self.lastRecordedPath) return;
-
                 // Skip if a history method fired very recently — it already handled this
                 if (Date.now() - self.lastHistoryChange < 500) return;
 
+                // ← NEW: check content changed, not just URL
+                const fingerprint = getContentFingerprint();
+                if (currentPath === self.lastRecordedPath && fingerprint === lastContentFingerprint) return;
+
+                lastContentFingerprint = fingerprint;
                 // We have a genuine DOM-driven route change not caught by history patching
                 self.trackPageView("mutation");
                 }, 200);
