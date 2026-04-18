@@ -1,3 +1,4 @@
+// v1.0.1
 const script=document.getElementById("featureTrackSDK")
 const projectKey=script?.dataset?.projKey|| "demoProjectKey1234";
 const favicon = document.querySelector("link[rel~='icon']");
