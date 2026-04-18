@@ -4,7 +4,7 @@ const projectKey=script?.dataset?.projKey|| "demoProjectKey1234";
 const favicon = document.querySelector("link[rel~='icon']");
 const icon=favicon?.href
 console.log("icon:",icon);
-
+//omo
 const backendUrl="https://cinanalytics-backend.onrender.com/api";
 
 (function featureTracker(){
