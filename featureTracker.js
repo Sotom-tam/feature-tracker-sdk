@@ -4,7 +4,7 @@ const projectKey=script?.dataset?.projKey|| "demoProjectKey1234";
 const favicon = document.querySelector("link[rel~='icon']");
 const icon=favicon?.href
 console.log("icon:",icon);
-//omo
+//bug on initialised
 const backendUrl="https://cinanalytics-backend.onrender.com/api";
 
 (function featureTracker(){
@@ -76,6 +76,8 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             })
             const data=await response.json()
             console.log("Your feature tracker is ready",data)
+            if (data.status === "error" || data.success === false) return false;
+            return true;
         },
         attachListener:function(){//This function attaches listeners to document to catch events
             document.addEventListener("click", this.handleEvent.bind(this), true);
