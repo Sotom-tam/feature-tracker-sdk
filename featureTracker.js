@@ -24,6 +24,7 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
         /** Timestamp of last pushState/replaceState call to suppress duplicate MutationObserver fires */
         lastHistoryChange: 0,
         init:async function(config={}){
+            console.log("[FeatureTracker] init called", config);
             //this function should only run on the first load
             if(this.initialised)return;
 
@@ -64,20 +65,34 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             console.log("Initialising")
             console.log(config)
         },
-        sdkInitialised:async function(){
-            const response =await fetch(`${backendUrl}/project/verify-project`,{
-                method:"POST",
-                headers:{"Content-type":"application/json"},
-                body:JSON.stringify({
-                    projectKey:this.projectKey,
-                    projectIcon:this.projectIcon,
-                }),
-                credentials:"include"
-            })
-            const data=await response.json()
-            console.log("Your feature tracker is ready",data)
-            if (data.status === "error" || data.success === false) return false;
-            return true;
+        sdkInitialised: async function() {
+            try {
+                const response = await fetch(`${backendUrl}/project/verify-project`, {
+                    method: "POST",
+                    headers: { "Content-type": "application/json" },
+                    body: JSON.stringify({
+                        projectKey: this.projectKey,
+                        projectIcon: this.projectIcon,
+                    }),
+                    credentials: "include"
+                });
+
+                if (!response.ok) {
+                    console.error("[FeatureTracker] Verify failed, status:", response.status);
+                    return false;
+                }
+
+                const data = await response.json();
+                console.log("Your feature tracker is ready", data);
+
+                if (data.status === "error" || data.success === false) return false;
+
+                return true;
+
+            } catch (error) {
+                console.error("[FeatureTracker] sdkInitialised error:", error);
+                return false;
+            }
         },
         attachListener:function(){//This function attaches listeners to document to catch events
             document.addEventListener("click", this.handleEvent.bind(this), true);
