@@ -271,6 +271,15 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
 
                 lastContentFingerprint = fingerprint;
                 // We have a genuine DOM-driven route change not caught by history patching
+                const swapTarget = document.getElementById("page_content");
+                if (swapTarget) {
+                    // Try to get page name from heading or title inside the loaded content
+                    const heading = swapTarget.querySelector('h1, h2, h3, [data-page-title]');
+                    if (heading) {
+                        self.currentPageName = formatFeatureName(heading.innerText.trim().slice(0, 50));
+                    }
+                }
+                self.currentPageName = self.currentPageName || null;
                 self.trackPageView("mutation");
                 }, 200);
             });
