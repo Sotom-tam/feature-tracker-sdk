@@ -270,17 +270,22 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
                 if (currentPath === self.lastRecordedPath && fingerprint === lastContentFingerprint) return;
 
                 lastContentFingerprint = fingerprint;
-                // We have a genuine DOM-driven route change not caught by history patching
-                const swapTarget = document.getElementById("page_content");
-                if (swapTarget) {
-                    // Try to get page name from heading or title inside the loaded content
-                    const heading = swapTarget.querySelector('h1, h2, h3, [data-page-title]');
+
+                // If no nav click set the name, try to infer from page content
+                if (!self.currentPageName) {
+                    const swapTarget = mountPoint;
+                    const heading = swapTarget?.querySelector('h1, h2, h3, [data-page-title]');
+                    const btn = swapTarget?.querySelector('.page-title, .breadcrumb, [data-title]');
                     if (heading) {
                         self.currentPageName = formatFeatureName(heading.innerText.trim().slice(0, 50));
+                    } else if (btn) {
+                        self.currentPageName = formatFeatureName(btn.innerText.trim().slice(0, 50));
                     }
                 }
-                self.currentPageName = self.currentPageName || null;
+
                 self.trackPageView("mutation");
+                // Reset after firing so next page gets fresh name
+                self.currentPageName =null
                 }, 200);
             });
 
