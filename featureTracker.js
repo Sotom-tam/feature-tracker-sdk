@@ -1,50 +1,55 @@
 // v1.0.1
-const script=document.getElementById("featureTrackSDK")
-const projectKey=script?.dataset?.projKey|| "demoProjectKey1234";
+const script = document.getElementById("featureTrackSDK")
+const projectKey = script?.dataset?.projKey || "demoProjectKey1234";
 const favicon = document.querySelector("link[rel~='icon']");
-const icon=favicon?.href
-console.log("icon:",icon);
+const icon = favicon?.href
+console.log("icon:", icon);
 //bug on initialised
-const backendUrl="https://cinanalytics-backend.onrender.com/api";
+const backendUrl = "https://cinanalytics-backend.onrender.com/api";
 
-(function featureTracker(){
-    const FeatureTracker={
-        initialised:false,
-        config:{},
-        visitorId:getOrCreateUser(),
-        projectKey:null,
-        projectIcon:icon,
+(function featureTracker() {
+    const FeatureTracker = {
+        initialised: false,
+        config: {},
+        visitorId: getOrCreateUser(),
+        projectKey: null,
+        projectIcon: icon,
         pendingNavigation: false,
         navigationTimer: null,
-        currentPageName:null,
-         /** The last recorded pathname + hash, used for de-duplication */
+        currentPageName: null,
+        /** The last recorded pathname + hash, used for de-duplication */
         lastRecordedPath: null,
         /** MutationObserver watching for SPA DOM swaps (React / Vue / Angular) */
         mutationObserver: null,
         /** Timestamp of last pushState/replaceState call to suppress duplicate MutationObserver fires */
         lastHistoryChange: 0,
-        init:async function(config={}){
+
+
+
+
+        init: async function (config = {}) {
             console.log("[FeatureTracker] init called", config);
             //this function should only run on the first load
-            if(this.initialised)return;
+            if (this.initialised) return;
 
             //values to set on first load
 
             this.config = config;
-            this.projectKey = config.projectKey||null;
+            this.projectKey = config.projectKey || null;
 
-            if ((!this.projectKey)||this.projectKey==="demoProjectKey1234") {
+            if ((!this.projectKey) || this.projectKey === "demoProjectKey1234") {
                 console.warn("[FeatureTracker] Initialisation failed: no projectKey provided. Tracking disabled.");
                 return; // never sets this.initialised = true, so init() could be retried
             }
 
 
-            const verified=await this.sdkInitialised();
+            const verified = await this.sdkInitialised();
             if (!verified) {
                 console.warn("[FeatureTracker] Project verification failed. Tracking disabled.");
                 return; // still not initialised — safe to retry
             }
-            this.initialised=true;
+
+            this.initialised = true;
             //functions to call on first load
             this.attachListener();
             this.patchHistory();       // intercept pushState / replaceState
@@ -52,20 +57,23 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             this.listenPopState();     // browser back / forward
             // After (waits for DOM if script is in <head>)
             if (document.readyState === "loading") {
-            document.addEventListener("DOMContentLoaded", () => {
-                this.observeDOMForSPAs();
-                this.trackPageView("initial");
-            }, { once: true });
+                document.addEventListener("DOMContentLoaded", () => {
+                    this.observeDOMForSPAs();
+                    this.trackPageView("initial");
+                }, { once: true });
             } else {
-            this.observeDOMForSPAs(); // DOM already ready (deferred/async/end of body)
-            this.trackPageView("initial");
+                this.observeDOMForSPAs(); // DOM already ready (deferred/async/end of body)
+                this.trackPageView("initial");
             }
             //setting intiliased to true
 
             console.log("Initialising")
             console.log(config)
         },
-        sdkInitialised: async function() {
+
+
+
+        sdkInitialised: async function () {
             try {
                 const response = await fetch(`${backendUrl}/project/verify-project`, {
                     method: "POST",
@@ -94,139 +102,177 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
                 return false;
             }
         },
-        attachListener:function(){//This function attaches listeners to document to catch events
+
+        attachListener: function () {
+            //This function attaches listeners to document to catch events
             document.addEventListener("click", this.handleEvent.bind(this), true);
             document.addEventListener("submit", this.handleEvent.bind(this), true);
+            window.addEventListener("scroll", this.handleScroll.bind(this), {
+                passive: true
+            });
         },
-        handleEvent:function(event){
+
+
+        scrollMarks: {},
+
+        handleScroll: function () {
+            const scrollTop = window.scrollY;
+            const winHeight = window.innerHeight;
+            const docHeight = document.documentElement.scrollHeight;
+
+            const percent = Math.round(
+                ((scrollTop + winHeight) / docHeight) * 100
+            );
+
+            const milestones = [25, 50, 75, 100];
+
+            milestones.forEach(mark => {
+                if (percent >= mark && !this.scrollMarks[mark]) {
+                    this.scrollMarks[mark] = true;
+
+                    this.sendData({
+                        projectKey: this.projectKey,
+                        visitorId: this.visitorId,
+                        eventType: "scroll_depth",
+                        depth: mark,
+                        page: window.location.pathname,
+                        timestamp: Date.now()
+                    });
+                }
+            });
+        },
+
+
+        handleEvent: function (event) {
             if (event.type === "click") {
-            const pageName = this.getPageFromClick(event.target);
-            if (pageName) {
-                this.currentPageName = pageName;
-                // mark navigation pending
-                this.pendingNavigation = true;
-                // clear any previous timer
-                if (this.navigationTimer) {
-                clearTimeout(this.navigationTimer);
+                const pageName = this.getPageFromClick(event.target);
+                if (pageName) {
+                    this.currentPageName = pageName;
+                    // mark navigation pending
+                    this.pendingNavigation = true;
+                    // clear any previous timer
+                    if (this.navigationTimer) {
+                        clearTimeout(this.navigationTimer);
+                    }
+                    //  fallback only if router fails
+                    this.navigationTimer = setTimeout(() => {
+                        if (this.pendingNavigation) {
+                            this.trackPageView("navigation-fallback");
+                            this.pendingNavigation = false;
+                        }
+                    }, 400);
                 }
-                //  fallback only if router fails
-                this.navigationTimer = setTimeout(() => {
-                if (this.pendingNavigation) {
-                    this.trackPageView("navigation-fallback");
-                    this.pendingNavigation = false;
-                }
-                }, 400);
-            }
             }
             //console.log(event)
-            const elementData=this.recordEvent(event)
-            if(elementData){this.sendData(elementData)}
-            
+            const elementData = this.recordEvent(event)
+            if (elementData) { this.sendData(elementData) }
+
         },
-        recordEvent:function(event){
-            const eventType=event.type;
-            const element=event.target
+        recordEvent: function (event) {
+            const eventType = event.type;
+            const element = event.target
             //We only want to record events that are tied to features
             //the elements listed here are the ones that are tied to features
-            const interactiveElement=element.closest('button, div, a, input, select, textarea, form, [role="button"], [onclick]');
-            if(!interactiveElement){return;}//don't record if it isn't an "interactive element" 
+            const interactiveElement = element.closest('button, div, a, input, select, textarea, form, [role="button"], [onclick]');
+            if (!interactiveElement) { return; }//don't record if it isn't an "interactive element" 
             //we need to know which feature the element is tied to
             //we can do this by getting the container that feature is in
-            const container=findFeatureContainer(element)
+            const container = findFeatureContainer(element)
             //get fingerprint of container  (tells us where this element is in document)
-            const containerFingerPrint=getSelectorFingerprint(container)
+            const containerFingerPrint = getSelectorFingerprint(container)
             //same feature container should have thesame key
-            const featureKey=hashString(containerFingerPrint,"feat_")
-            const featurName=formatFeatureName(inferFeatureName(container))
-            const eventData={
-                projectKey:this.projectKey,
-                visitorId:this.visitorId,
+            const featureKey = hashString(containerFingerPrint, "feat_")
+            const featurName = formatFeatureName(inferFeatureName(container))
+            const eventData = {
+                projectKey: this.projectKey,
+                visitorId: this.visitorId,
                 eventType,
-                tag:element.tagName,
-                innerText:element.innerText?.trim().slice(0,30),                
-                id:element.id||null,
-                classes:element.className||null,
-                ariaLabel:element.getAttribute("aria-label")||null,
+                tag: element.tagName,
+                innerText: element.innerText?.trim().slice(0, 30),
+                id: element.id || null,
+                classes: element.className || null,
+                ariaLabel: element.getAttribute("aria-label") || null,
                 role: element.getAttribute("role"),
                 name: element.getAttribute("name"),
-                featureKey:featureKey,
-                featureName:featurName,
-                containerTag:container?.tagName,
-                containerId:container?.id,
-                containerClasses:container?.className,
-                containerSelectorFingerPrint:containerFingerPrint,
+                featureKey: featureKey,
+                featureName: featurName,
+                containerTag: container?.tagName,
+                containerId: container?.id,
+                containerClasses: container?.className,
+                containerSelectorFingerPrint: containerFingerPrint,
                 path: window.location.pathname,
                 url: window.location.href,
                 title: document.title,
                 timestamp: Date.now()
             }
-            console.log("Event Captured:",eventData)
+            console.log("Event Captured:", eventData)
             return eventData
         },
-        getPageFromClick: function(element) {
-        // Check if the clicked element or its parent is a nav link
-        const anchor = element.closest("a[data-page], nav a, [role='navigation'] a");
-        if (!anchor) return null;
+        getPageFromClick: function (element) {
+            // Check if the clicked element or its parent is a nav link
+            const anchor = element.closest("a[data-page], nav a, [role='navigation'] a");
+            if (!anchor) return null;
 
-        // Prefer data-page attribute, fall back to link text
-        const raw =
-            anchor.getAttribute("data-page") ||
-            anchor.getAttribute("href")?.replace(/^[/#]+/, "") ||
-            anchor.innerText?.trim();
+            // Prefer data-page attribute, fall back to link text
+            const raw =
+                anchor.getAttribute("data-page") ||
+                anchor.getAttribute("href")?.replace(/^[/#]+/, "") ||
+                anchor.innerText?.trim();
 
-        if (!raw || raw === "#") return null;
+            if (!raw || raw === "#") return null;
 
-        return formatFeatureName(raw);
+            return formatFeatureName(raw);
         },
         trackPageView: function (source) {
-        const currentPath = window.location.pathname + window.location.hash;
-        // De-duplicate: don't fire twice for the same path
+              this.scrollMarks = {}; 
+            const currentPath = window.location.pathname + window.location.hash;
+            // De-duplicate: don't fire twice for the same path
 
-        this.lastRecordedPath = currentPath;
-        this.pendingNavigation=false
-        const eventData = {
-            projectKey: this.projectKey,
-            visitorId:  this.visitorId,
-            eventType:  "pageview",
-            pageName:this.currentPageName || getPageName(window.location.pathname),
-            path:  window.location.pathname,
-            hash:  window.location.hash,
-            url:   window.location.href,
-            title: document.title,
-            source,
-            timestamp: Date.now(),
-        };
+            this.lastRecordedPath = currentPath;
+            this.pendingNavigation = false
+            const eventData = {
+                projectKey: this.projectKey,
+                visitorId: this.visitorId,
+                eventType: "pageview",
+                pageName: this.currentPageName || getPageName(window.location.pathname),
+                path: window.location.pathname,
+                hash: window.location.hash,
+                url: window.location.href,
+                title: document.title,
+                source,
+                timestamp: Date.now(),
+            };
 
-        console.log("[FeatureTracker] Page View:", eventData);
-        this.sendData(eventData);
+            console.log("[FeatureTracker] Page View:", eventData);
+            this.sendData(eventData);
         },
         patchHistory: function () {
-        const self = this;
-        function wrapHistoryMethod(methodName) {
-            const original = history[methodName];
-            history[methodName] = function (...args) {
-                original.apply(this, args);
-                self.lastHistoryChange = Date.now();
-                // cancel click fallback
-                self.pendingNavigation = false;
-                if (self.navigationTimer) {
-                    clearTimeout(self.navigationTimer);
-                }
-                setTimeout(() => self.trackPageView(methodName), 0);
+            const self = this;
+            function wrapHistoryMethod(methodName) {
+                const original = history[methodName];
+                history[methodName] = function (...args) {
+                    original.apply(this, args);
+                    self.lastHistoryChange = Date.now();
+                    // cancel click fallback
+                    self.pendingNavigation = false;
+                    if (self.navigationTimer) {
+                        clearTimeout(self.navigationTimer);
+                    }
+                    setTimeout(() => self.trackPageView(methodName), 0);
                 };
-        }
-        wrapHistoryMethod("pushState");
-        wrapHistoryMethod("replaceState");
+            }
+            wrapHistoryMethod("pushState");
+            wrapHistoryMethod("replaceState");
         },
         // ── Route-Change Detection: browser back / forward ────────────────────
         listenPopState: function () {
-        window.addEventListener("popstate", () => {
-            setTimeout(() => this.trackPageView("popstate"), 0);
-        });
+            window.addEventListener("popstate", () => {
+                setTimeout(() => this.trackPageView("popstate"), 0);
+            });
         },
         listenHashChange: function () {
             window.addEventListener("hashchange", () => {
-            this.trackPageView("hashchange");
+                this.trackPageView("hashchange");
             });
         },
         observeDOMForSPAs: function () {
@@ -238,7 +284,7 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
                 document.getElementById("app") ||    // Vue CLI / custom
                 document.getElementById("__next") || // Next.js
                 document.getElementById("content") || // index.html demo style
-                document.getElementById("page_content")||//cinfores style
+                document.getElementById("page_content") ||//cinfores style
                 document.body;
 
             let lastContentFingerprint = null;
@@ -256,36 +302,36 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
             this.mutationObserver = new MutationObserver(() => {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
-                const currentPath = window.location.pathname + window.location.hash;
-                
-                // router already handled
-                if (!self.pendingNavigation && Date.now() - self.lastHistoryChange < 500) {
-                return;
-                }
-                // Skip if a history method fired very recently — it already handled this
-                if (Date.now() - self.lastHistoryChange < 500) return;
+                    const currentPath = window.location.pathname + window.location.hash;
 
-                // ← NEW: check content changed, not just URL
-                const fingerprint = getContentFingerprint();
-                if (currentPath === self.lastRecordedPath && fingerprint === lastContentFingerprint) return;
-
-                lastContentFingerprint = fingerprint;
-
-                // If no nav click set the name, try to infer from page content
-                if (!self.currentPageName) {
-                    const swapTarget = mountPoint;
-                    const heading = swapTarget?.querySelector('h1, h2, h3, [data-page-title]');
-                    const btn = swapTarget?.querySelector('.page-title, .breadcrumb, [data-title]');
-                    if (heading) {
-                        self.currentPageName = formatFeatureName(heading.innerText.trim().slice(0, 50));
-                    } else if (btn) {
-                        self.currentPageName = formatFeatureName(btn.innerText.trim().slice(0, 50));
+                    // router already handled
+                    if (!self.pendingNavigation && Date.now() - self.lastHistoryChange < 500) {
+                        return;
                     }
-                }
+                    // Skip if a history method fired very recently — it already handled this
+                    if (Date.now() - self.lastHistoryChange < 500) return;
 
-                self.trackPageView("mutation");
-                // Reset after firing so next page gets fresh name
-                self.currentPageName =null
+                    // ← NEW: check content changed, not just URL
+                    const fingerprint = getContentFingerprint();
+                    if (currentPath === self.lastRecordedPath && fingerprint === lastContentFingerprint) return;
+
+                    lastContentFingerprint = fingerprint;
+
+                    // If no nav click set the name, try to infer from page content
+                    if (!self.currentPageName) {
+                        const swapTarget = mountPoint;
+                        const heading = swapTarget?.querySelector('h1, h2, h3, [data-page-title]');
+                        const btn = swapTarget?.querySelector('.page-title, .breadcrumb, [data-title]');
+                        if (heading) {
+                            self.currentPageName = formatFeatureName(heading.innerText.trim().slice(0, 50));
+                        } else if (btn) {
+                            self.currentPageName = formatFeatureName(btn.innerText.trim().slice(0, 50));
+                        }
+                    }
+
+                    self.trackPageView("mutation");
+                    // Reset after firing so next page gets fresh name
+                    self.currentPageName = null
                 }, 200);
             });
 
@@ -293,37 +339,37 @@ const backendUrl="https://cinanalytics-backend.onrender.com/api";
                 childList: true,  // direct children added/removed
                 subtree: true,    // deep changes
             });
-        }, 
-        sendData:async function(payload){
+        },
+        sendData: async function (payload) {
 
             try {
-                const result=await fetch(`${backendUrl}/events`,{
-                method:"POST",
-                headers:{"Content-Type": "application/json"},
-                body:JSON.stringify(payload),
-                keepalive:true,
+                const result = await fetch(`${backendUrl}/events`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                    keepalive: true,
                 })
-                console.log(result) 
+                console.log(result)
             } catch (error) {
                 console.log(error)
             }
-            
+
         }
 
     }
 
-    window.FeatureTracker=FeatureTracker;
+    window.FeatureTracker = FeatureTracker;
     FeatureTracker.init({
-        projectKey:projectKey
+        projectKey: projectKey
     })
 })(window)
 
-function getOrCreateUser(){
-    const STORAGE_KEY="fk_visitor_id"
-    let id=localStorage.getItem(STORAGE_KEY)
+function getOrCreateUser() {
+    const STORAGE_KEY = "fk_visitor_id"
+    let id = localStorage.getItem(STORAGE_KEY)
     //checking id id exist
     //creating a new id
-    if(!id){
+    if (!id) {
         id = "v_" + Math.random().toString(12).slice(2) + Date.now();
         localStorage.setItem(STORAGE_KEY, id);
     }
@@ -338,7 +384,7 @@ function findFeatureContainer(element) {
 
     const MAX_DEPTH = 6; // prevent climbing entire page
 
-    while (current&&current!== document.body&&depth < MAX_DEPTH) {
+    while (current && current !== document.body && depth < MAX_DEPTH) {
 
         //1STRONGEST SIGNAL: Explicit developer tagging
         //If developer adds: <div data-feature="search-bar">
@@ -355,12 +401,12 @@ function findFeatureContainer(element) {
         //HEURISTIC STRUCTURAL DETECTION
         //We try to detect UI components based on structure.
         // Count interactive children
-        const interactiveChildren =current.querySelectorAll("button, a, input, select, textarea, [role='button']").length;
+        const interactiveChildren = current.querySelectorAll("button, a, input, select, textarea, [role='button']").length;
         // Heuristic rule:
         // - Must have class name (not plain div)
         // - Must contain at least 2 interactive elements
         // - Should not be too large (avoid grouping whole page)
-        if (current.className &&typeof current.className === "string" &&interactiveChildren >= 2 &&current.children.length <= 20) {
+        if (current.className && typeof current.className === "string" && interactiveChildren >= 2 && current.children.length <= 20) {
             return current;
         }
         // Move up one level
@@ -388,80 +434,80 @@ function inferFeatureName(container) {
     );
 }
 function formatFeatureName(raw) {
-  if (!raw) return "Unknown";
+    if (!raw) return "Unknown";
 
-  return raw
-    // camelCase → "camel Case"
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    // kebab-case and snake_case → spaces
-    .replace(/[-_]/g, " ")
-    // Capitalise every word
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .trim();
+    return raw
+        // camelCase → "camel Case"
+        .replace(/([a-z])([A-Z])/g, "$1 $2")
+        // kebab-case and snake_case → spaces
+        .replace(/[-_]/g, " ")
+        // Capitalise every word
+        .replace(/\b\w/g, (c) => c.toUpperCase())
+        .trim();
 }
 
 function getPageName(path) {
-  // Remove leading slash, split into segments
-  const segments = path.replace(/^\//, "").split("/").filter(Boolean);
+    // Remove leading slash, split into segments
+    const segments = path.replace(/^\//, "").split("/").filter(Boolean);
 
-  if (segments.length === 0) return "Home";
+    if (segments.length === 0) return "Home";
 
-  // Take the last meaningful segment
-  // /lesson/biology  → "biology"
-  // /dashboard       → "dashboard"  
-  // /lesson/biology/quiz → "quiz"
-  const raw = segments[segments.length - 1];
+    // Take the last meaningful segment
+    // /lesson/biology  → "biology"
+    // /dashboard       → "dashboard"  
+    // /lesson/biology/quiz → "quiz"
+    const raw = segments[segments.length - 1];
 
-  // Reuse your existing formatter
-  return formatFeatureName(raw);
+    // Reuse your existing formatter
+    return formatFeatureName(raw);
 }
 
 
 function getSelectorFingerprint(el) {
-  const path = [];
+    const path = [];
 
-  while (el && el.nodeType === 1 && el !== document.body) {
-    let selector = el.tagName.toLowerCase();
-    // prefer stable id
-    if (el.id) {
-      selector += "#" + el.id;
-      path.unshift(selector);
-      break; // id is unique enough
+    while (el && el.nodeType === 1 && el !== document.body) {
+        let selector = el.tagName.toLowerCase();
+        // prefer stable id
+        if (el.id) {
+            selector += "#" + el.id;
+            path.unshift(selector);
+            break; // id is unique enough
+        }
+
+        // fallback to class
+        if (el.className && typeof el.className === "string") {
+            //console.log("class name:",el.className)
+            //if element has multiple classnames we split them using the whitespace \s and + if there's more than one
+            const cls = el.className.trim().split(/\s+/)[0];//split might give us and array of each classname so we take the first one
+            if (cls) selector += "." + cls;
+        }
+
+        // fallback to position
+        const parent = el.parentNode;
+        if (parent) {
+            const siblings = Array.from(parent.children).filter(
+                (child) => child.tagName === el.tagName
+            );
+
+            if (siblings.length > 1) {
+                const index = siblings.indexOf(el) + 1;
+                selector += `:nth-of-type(${index})`;
+            }
+        }
+
+        path.unshift(selector);
+        el = el.parentElement;
     }
 
-    // fallback to class
-    if (el.className && typeof el.className === "string") {
-        //console.log("class name:",el.className)
-        //if element has multiple classnames we split them using the whitespace \s and + if there's more than one
-        const cls = el.className.trim().split(/\s+/)[0];//split might give us and array of each classname so we take the first one
-        if (cls) selector += "." + cls;
-    }
-
-    // fallback to position
-    const parent = el.parentNode;
-    if (parent) {
-      const siblings = Array.from(parent.children).filter(
-        (child) => child.tagName === el.tagName
-      );
-
-      if (siblings.length > 1) {
-        const index = siblings.indexOf(el) + 1;
-        selector += `:nth-of-type(${index})`;
-      }
-    }
-
-    path.unshift(selector);
-    el = el.parentElement;
-  }
-
-  return path.join(" > ");
+    return path.join(" > ");
 }
 
-function hashString(str,strStart) {
-  let hash = 0;
-  for (let i = 0; i < str.length; i++) {
-    hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
-  }
-  // base36 string, pad to 12 characters (between 10–15)
-  return strStart+ hash.toString(36).padEnd(12, "0");
+function hashString(str, strStart) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        hash = (hash * 31 + str.charCodeAt(i)) >>> 0;
+    }
+    // base36 string, pad to 12 characters (between 10–15)
+    return strStart + hash.toString(36).padEnd(12, "0");
 }

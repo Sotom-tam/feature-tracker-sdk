@@ -12,6 +12,7 @@ const backendUrl=`http://localhost:4000/api`;
 
 (function featureTracker(window){
     const visitorId=getOrCreateUser()
+    
     function getOrCreateUser(){
             const STORAGE_KEY="fk_visitor_id"
             let id=localStorage.getItem(STORAGE_KEY)
