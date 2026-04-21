@@ -129,15 +129,16 @@ const backendUrl = "https://cinanalytics-backend.onrender.com/api";
             milestones.forEach(mark => {
                 if (percent >= mark && !this.scrollMarks[mark]) {
                     this.scrollMarks[mark] = true;
-
-                    this.sendData({
+                     
+                     const eventData ={
                         projectKey: this.projectKey,
                         visitorId: this.visitorId,
                         eventType: "scroll_depth",
                         depth: mark,
                         page: window.location.pathname,
                         timestamp: Date.now()
-                    });
+                    }
+                    this.sendData(eventData);
                 }
             });
         },
